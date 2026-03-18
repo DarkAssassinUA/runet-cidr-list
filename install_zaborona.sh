@@ -44,4 +44,3 @@ uci commit firewall
 
 /etc/init.d/network restart
 /etc/init.d/openvpn restart
-EOF
