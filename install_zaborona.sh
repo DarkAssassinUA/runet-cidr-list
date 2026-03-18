@@ -1,14 +1,15 @@
 #!/bin/sh
 
-# 1. Выбор сервера
+# 1. Выбор сервера (исправленный синтаксис для ash)
 echo "Выберите тип серверов Zaborona Help:"
-echo "1) Основные серверы (Стандартный список)"
-echo "2) Европа (Раздача большого списка маршрутов)"
-read -p "Введите номер (1 или 2): " choice
+echo "1. Основные серверы - Стандартный список"
+echo "2. Европа - Раздача большого списка маршрутов"
+printf "Введите номер (1 или 2): "
+read choice
 
 if [ "$choice" = "2" ]; then
     SERVER="srv0bigroutes.vpn.zaboronahelp.pp.ua"
-    echo "--- Выбран Большой список (Европа) ---"
+    echo "--- Выбран Большой список Европа ---"
 else
     SERVER="srv0.vpn.zaboronahelp.pp.ua"
     echo "--- Выбран Стандартный список ---"
@@ -90,22 +91,20 @@ echo "--- Перезагрузка сервисов ---"
 /etc/init.d/openvpn restart
 /etc/init.d/dnsmasq restart
 
-echo "--- Ожидание поднятия туннеля (12 сек) ---"
-sleep 12
+echo "--- Ожидание поднятия туннеля (15 сек) ---"
+sleep 15
 
 # 8. Проверка результата
 TUN_IP=$(ifconfig tun0 2>/dev/null | grep 'inet addr' | awk '{print $2}' | cut -d: -f2)
 
 if [ -n "$TUN_IP" ]; then
-    echo "✅ УСПЕХ: Интерфейс tun0 поднят. Ваш VPN IP: $TUN_IP"
-    echo "--- Проверка связи с сервером 8.8.8.8 ---"
+    echo "OK: Интерфейс tun0 поднят. IP: $TUN_IP"
+    echo "--- Проверка пинга через туннель ---"
     if ping -I tun0 -c 3 8.8.8.8 > /dev/null; then
-        echo "✅ ПИНГ ПРОШЕЛ: Интернет внутри туннеля работает."
+        echo "OK: ПИНГ ПРОШЕЛ"
     else
-        echo "❌ ОШИБКА: Туннель поднят, но пакеты не проходят. Проверьте MTU."
+        echo "FAIL: Пинг не идет"
     fi
 else
-    echo "❌ ОШИБКА: tun0 не получил IP. Посмотрите логи: logread | grep openvpn"
+    echo "FAIL: tun0 не получил IP"
 fi
-
-echo "--- Настройка завершена ---"
