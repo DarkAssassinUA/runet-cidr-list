@@ -1,7 +1,7 @@
 #!/bin/sh
 # 1. Установка пакетов
-opkg update
-opkg install openvpn-openssl luci-app-openvpn ca-bundle ca-certificates
+apk update
+apk add openvpn-openssl luci-app-openvpn ca-bundle ca-certificates
 
 # 2. Сертификаты
 mkdir -p /etc/openvpn
