@@ -65,9 +65,14 @@ uci commit firewall
 
 # 7. Принудительная установка DNS (OpenDNS для Zaborona)
 echo "--- Настройка DNS ---"
-uci del dhcp.@dnsmasq[0].server
+# Очищаем все старые записи серверов (тихо, без ошибок если их нет)
+uci -q delete dhcp.@dnsmasq[0].server
+
+# Добавляем нужные сервера
 uci add_list dhcp.@dnsmasq[0].server='208.67.222.222'
 uci add_list dhcp.@dnsmasq[0].server='208.67.220.220'
+
+# Игнорируем DNS провайдера
 uci set dhcp.@dnsmasq[0].noresolv='1'
 uci commit dhcp
 
