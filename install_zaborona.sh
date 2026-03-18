@@ -1,22 +1,34 @@
 #!/bin/sh
 
-# 1. Выбор сервера - МАКСИМАЛЬНО ПРОСТОЙ СИНТАКСИС
-echo "Выберите сервер Zaborona Help:"
-echo "1 - Standart"
-echo "2 - Big Routes"
-echo "Введите 1 или 2:"
-read choice
+# Убираем возможные невидимые символы Windows, если они попали в файл
+sed -i 's/\r$//' "$0"
 
-if [ "$choice" = "2" ]
-then
-    SERVER="srv0bigroutes.vpn.zaboronahelp.pp.ua"
-    echo "Выбран Big Routes"
-else
-    SERVER="srv0.vpn.zaboronahelp.pp.ua"
-    echo "Выбран Standart"
-fi
+echo "=== ВЫБОР СЕРВЕРА ZABORONA ==="
+echo "1 - Standart (Обычный список)"
+echo "2 - Big Routes (Европа, много маршрутов)"
+echo "Пожалуйста, введите цифру и нажмите ENTER:"
 
-# 2. Определение пакетного менеджера
+# Используем цикл, пока не будет введено 1 или 2
+while true; do
+    read -r choice
+    case "$choice" in
+        1)
+            SERVER="srv0.vpn.zaboronahelp.pp.ua"
+            echo "Выбран: Standart"
+            break
+            ;;
+        2)
+            SERVER="srv0bigroutes.vpn.zaboronahelp.pp.ua"
+            echo "Выбран: Big Routes"
+            break
+            ;;
+        *)
+            echo "Ошибка! Введите только 1 или 2:"
+            ;;
+    esac
+done
+
+# Дальше идет основная часть установки
 if command -v apk >/dev/null
 then
     PKG_MGR="apk add"
@@ -30,14 +42,12 @@ echo "--- Установка пакетов ---"
 $opkg_update
 $PKG_MGR openvpn-openssl luci-app-openvpn luci-i18n-openvpn-ru libustream-openssl ca-bundle ca-certificates
 
-# 3. Скачивание файлов
 mkdir -p /etc/openvpn
 echo "--- Загрузка сертификатов ---"
 wget --no-check-certificate "https://zaborona.help/ca.crt" -O /etc/openvpn/ca.crt
 wget --no-check-certificate "https://zaborona.help/zaborona-help.crt" -O /etc/openvpn/zaborona-help.crt
 wget --no-check-certificate "https://zaborona.help/zaborona-help.key" -O /etc/openvpn/zaborona-help.key
 
-# 4. Настройка сети
 echo "--- Настройка Network ---"
 uci -q delete network.zaborona_help
 uci set network.zaborona_help=interface
@@ -45,7 +55,6 @@ uci set network.zaborona_help.proto='none'
 uci set network.zaborona_help.device='tun0'
 uci commit network
 
-# 5. Настройка OpenVPN
 echo "--- Настройка OpenVPN ---"
 uci -q delete openvpn.zaborona_help
 uci set openvpn.zaborona_help=openvpn
@@ -69,7 +78,6 @@ uci set openvpn.zaborona_help.verb='3'
 uci set openvpn.zaborona_help.mssfix='1300' 
 uci commit openvpn
 
-# 6. Настройка Firewall
 echo "--- Настройка Firewall ---"
 WAN_ZONE=$(uci show firewall | grep ".name='wan'" | cut -d'[' -f2 | cut -d']' -f1)
 [ -z "$WAN_ZONE" ] && WAN_ZONE=1
@@ -78,7 +86,6 @@ uci add_list firewall.@zone[$WAN_ZONE].network='zaborona_help'
 uci set firewall.@zone[$WAN_ZONE].mtu_fix='1'
 uci commit firewall
 
-# 7. Настройка DNS
 echo "--- Настройка DNS ---"
 uci -q delete dhcp.@dnsmasq[0].server
 uci add_list dhcp.@dnsmasq[0].server='208.67.222.222'
@@ -96,7 +103,6 @@ echo "--- Рестарт сервисов ---"
 echo "--- Ожидание 15 сек ---"
 sleep 15
 
-# 8. Проверка
 TUN_IP=$(ifconfig tun0 2>/dev/null | grep 'inet addr' | awk '{print $2}' | cut -d: -f2)
 
 if [ -n "$TUN_IP" ]
