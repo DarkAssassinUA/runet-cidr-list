@@ -1,22 +1,24 @@
 #!/bin/sh
 
-# 1. Выбор сервера (исправленный синтаксис для ash)
-echo "Выберите тип серверов Zaborona Help:"
-echo "1. Основные серверы - Стандартный список"
-echo "2. Европа - Раздача большого списка маршрутов"
-printf "Введите номер (1 или 2): "
+# 1. Выбор сервера - МАКСИМАЛЬНО ПРОСТОЙ СИНТАКСИС
+echo "Выберите сервер Zaborona Help:"
+echo "1 - Standart"
+echo "2 - Big Routes"
+echo "Введите 1 или 2:"
 read choice
 
-if [ "$choice" = "2" ]; then
+if [ "$choice" = "2" ]
+then
     SERVER="srv0bigroutes.vpn.zaboronahelp.pp.ua"
-    echo "--- Выбран Большой список Европа ---"
+    echo "Выбран Big Routes"
 else
     SERVER="srv0.vpn.zaboronahelp.pp.ua"
-    echo "--- Выбран Стандартный список ---"
+    echo "Выбран Standart"
 fi
 
-# 2. Определяем пакетный менеджер
-if command -v apk >/dev/null; then
+# 2. Определение пакетного менеджера
+if command -v apk >/dev/null
+then
     PKG_MGR="apk add"
     opkg_update="apk update"
 else
@@ -24,27 +26,27 @@ else
     opkg_update="opkg update"
 fi
 
-echo "--- Обновление и установка компонентов ---"
+echo "--- Установка пакетов ---"
 $opkg_update
 $PKG_MGR openvpn-openssl luci-app-openvpn luci-i18n-openvpn-ru libustream-openssl ca-bundle ca-certificates
 
-# 3. Скачивание сертификатов
+# 3. Скачивание файлов
 mkdir -p /etc/openvpn
-echo "--- Скачивание сертификатов Zaborona ---"
+echo "--- Загрузка сертификатов ---"
 wget --no-check-certificate "https://zaborona.help/ca.crt" -O /etc/openvpn/ca.crt
 wget --no-check-certificate "https://zaborona.help/zaborona-help.crt" -O /etc/openvpn/zaborona-help.crt
 wget --no-check-certificate "https://zaborona.help/zaborona-help.key" -O /etc/openvpn/zaborona-help.key
 
-# 4. Настройка сетевого интерфейса
-echo "--- Настройка сети ---"
+# 4. Настройка сети
+echo "--- Настройка Network ---"
 uci -q delete network.zaborona_help
 uci set network.zaborona_help=interface
 uci set network.zaborona_help.proto='none'
 uci set network.zaborona_help.device='tun0'
 uci commit network
 
-# 5. Настройка OpenVPN клиента
-echo "--- Настройка OpenVPN на сервер $SERVER ---"
+# 5. Настройка OpenVPN
+echo "--- Настройка OpenVPN ---"
 uci -q delete openvpn.zaborona_help
 uci set openvpn.zaborona_help=openvpn
 uci set openvpn.zaborona_help.client='1'
@@ -67,7 +69,7 @@ uci set openvpn.zaborona_help.verb='3'
 uci set openvpn.zaborona_help.mssfix='1300' 
 uci commit openvpn
 
-# 6. Настройка Firewall (nftables)
+# 6. Настройка Firewall
 echo "--- Настройка Firewall ---"
 WAN_ZONE=$(uci show firewall | grep ".name='wan'" | cut -d'[' -f2 | cut -d']' -f1)
 [ -z "$WAN_ZONE" ] && WAN_ZONE=1
@@ -85,26 +87,22 @@ uci set dhcp.@dnsmasq[0].noresolv='1'
 uci set dhcp.@dnsmasq[0].strictorder='1'
 uci commit dhcp
 
-echo "--- Перезагрузка сервисов ---"
+echo "--- Рестарт сервисов ---"
 /etc/init.d/network restart
 /etc/init.d/firewall restart
 /etc/init.d/openvpn restart
 /etc/init.d/dnsmasq restart
 
-echo "--- Ожидание поднятия туннеля (15 сек) ---"
+echo "--- Ожидание 15 сек ---"
 sleep 15
 
-# 8. Проверка результата
+# 8. Проверка
 TUN_IP=$(ifconfig tun0 2>/dev/null | grep 'inet addr' | awk '{print $2}' | cut -d: -f2)
 
-if [ -n "$TUN_IP" ]; then
-    echo "OK: Интерфейс tun0 поднят. IP: $TUN_IP"
-    echo "--- Проверка пинга через туннель ---"
-    if ping -I tun0 -c 3 8.8.8.8 > /dev/null; then
-        echo "OK: ПИНГ ПРОШЕЛ"
-    else
-        echo "FAIL: Пинг не идет"
-    fi
+if [ -n "$TUN_IP" ]
+then
+    echo "STATUS: OK. IP: $TUN_IP"
+    ping -I tun0 -c 3 8.8.8.8
 else
-    echo "FAIL: tun0 не получил IP"
+    echo "STATUS: FAIL. tun0 not found"
 fi
